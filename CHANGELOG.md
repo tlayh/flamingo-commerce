@@ -10,6 +10,7 @@
 * Expose unit of product variant attributes
 
 **cart**
+* **Breaking**: Moved to new flamingo auth module, breaks several interfaces which previously relied on the oauth module
 * **Breaking**
   * Cart item validation now requires the decorated cart to be passed to assure that validators don't rely on a cart from any other source (e.g. session)
   * Session added as parameter to interface method `MaxQuantityRestrictor.Restrict`
