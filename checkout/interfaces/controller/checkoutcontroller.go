@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	authApplication "flamingo.me/flamingo/v3/core/oauth/application"
+	"flamingo.me/flamingo/v3/core/auth"
 	"flamingo.me/flamingo/v3/framework/flamingo"
 	"flamingo.me/flamingo/v3/framework/web"
 
@@ -97,9 +97,8 @@ type (
 		applicationCartService         *cartApplication.CartService
 		applicationCartReceiverService *cartApplication.CartReceiverService
 
-		userService *authApplication.UserService
-
-		logger flamingo.Logger
+		webIdentityService *auth.WebIdentityService
+		logger             flamingo.Logger
 
 		checkoutFormController *forms.CheckoutFormController
 	}
@@ -117,7 +116,7 @@ func (cc *CheckoutController) Inject(
 	decoratedCartFactory *decorator.DecoratedCartFactory,
 	applicationCartService *cartApplication.CartService,
 	applicationCartReceiverService *cartApplication.CartReceiverService,
-	userService *authApplication.UserService,
+	webIdentityService *auth.WebIdentityService,
 	logger flamingo.Logger,
 	checkoutFormController *forms.CheckoutFormController,
 	config *struct {
@@ -149,8 +148,7 @@ func (cc *CheckoutController) Inject(
 	cc.applicationCartService = applicationCartService
 	cc.applicationCartReceiverService = applicationCartReceiverService
 
-	cc.userService = userService
-
+	cc.webIdentityService = webIdentityService
 	cc.logger = logger.WithField(flamingo.LogKeyModule, "checkout").WithField(flamingo.LogKeyCategory, "checkoutController")
 }
 
@@ -188,7 +186,7 @@ func (cc *CheckoutController) StartAction(ctx context.Context, r *web.Request) w
 		return guardRedirect
 	}
 
-	viewData := cc.getBasicViewData(ctx, r.Session(), *decoratedCart)
+	viewData := cc.getBasicViewData(ctx, r, *decoratedCart)
 	//Guard Clause if Cart is empty
 	if decoratedCart.Cart.ItemCount() == 0 {
 		if cc.showEmptyCartPageIfNoItems {
@@ -197,7 +195,7 @@ func (cc *CheckoutController) StartAction(ctx context.Context, r *web.Request) w
 		return cc.responder.Render("checkout/startcheckout", viewData).SetNoCache()
 	}
 
-	if cc.userService.IsLoggedIn(ctx, r.Session()) {
+	if cc.webIdentityService.Identify(ctx, r) != nil {
 		return cc.responder.RouteRedirect("checkout", nil)
 	}
 
@@ -319,7 +317,7 @@ func (cc *CheckoutController) SuccessAction(ctx context.Context, r *web.Request)
 }
 
 // ExpiredAction handles the expired cart action
-func (cc *CheckoutController) ExpiredAction(ctx context.Context, r *web.Request) web.Result {
+func (cc *CheckoutController) ExpiredAction(_ context.Context, _ *web.Request) web.Result {
 	if cc.showEmptyCartPageIfNoItems {
 		return cc.responder.Render("checkout/emptycart", EmptyCartInfo{
 			CartExpired: true,
@@ -333,16 +331,16 @@ func (cc *CheckoutController) getPaymentReturnURL(r *web.Request) *url.URL {
 	return paymentURL
 }
 
-func (cc *CheckoutController) getBasicViewData(ctx context.Context, session *web.Session, decoratedCart decorator.DecoratedCart) CheckoutViewData {
+func (cc *CheckoutController) getBasicViewData(ctx context.Context, request *web.Request, decoratedCart decorator.DecoratedCart) CheckoutViewData {
 	paymentGatewaysMethods := make(map[string][]paymentDomain.Method)
 	for gatewayCode, gateway := range cc.orderService.GetAvailablePaymentGateways(ctx) {
 		paymentGatewaysMethods[gatewayCode] = gateway.Methods()
 	}
 	return CheckoutViewData{
 		DecoratedCart:        decoratedCart,
-		CartValidationResult: cc.applicationCartService.ValidateCart(ctx, session, &decoratedCart),
+		CartValidationResult: cc.applicationCartService.ValidateCart(ctx, request.Session(), &decoratedCart),
 		AvailablePayments:    paymentGatewaysMethods,
-		CustomerLoggedIn:     cc.userService.IsLoggedIn(ctx, session),
+		CustomerLoggedIn:     cc.webIdentityService.Identify(ctx, request) != nil,
 	}
 }
 
@@ -361,7 +359,7 @@ func (cc *CheckoutController) showCheckoutFormAndHandleSubmit(ctx context.Contex
 		cc.logger.WithContext(ctx).Error("cart.checkoutcontroller.submitaction: Error No Payment set")
 		return cc.responder.Render("checkout/carterror", nil).SetNoCache()
 	}
-	viewData := cc.getBasicViewData(ctx, session, *decoratedCart)
+	viewData := cc.getBasicViewData(ctx, r, *decoratedCart)
 	//Guard Clause if Cart is empty
 	if decoratedCart.Cart.ItemCount() == 0 {
 		if cc.showEmptyCartPageIfNoItems {
@@ -416,7 +414,7 @@ func (cc *CheckoutController) showCheckoutFormWithErrors(ctx context.Context, r 
 	template := "checkout/checkout"
 
 	cc.logger.WithContext(ctx).Warn("showCheckoutFormWithErrors / Error:", err)
-	viewData := cc.getBasicViewData(ctx, r.Session(), decoratedCart)
+	viewData := cc.getBasicViewData(ctx, r, decoratedCart)
 	if form == nil {
 		form, _ = cc.checkoutFormController.GetUnsubmittedForm(ctx, r)
 	}
