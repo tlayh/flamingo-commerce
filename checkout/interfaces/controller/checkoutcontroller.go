@@ -36,11 +36,11 @@ type (
 
 	// ViewErrorInfos defines the error info struct of the checkout controller views
 	ViewErrorInfos struct {
-		//HasError  indicates that an general error happened
+		// HasError  indicates that an general error happened
 		HasError bool
-		//If there is a general error this field is filled and can be used in the template
+		// If there is a general error this field is filled and can be used in the template
 		ErrorMessage string
-		//if the Error happens during processing payment (can be used in template to behave special in case of payment errors)
+		// if the Error happens during processing payment (can be used in template to behave special in case of payment errors)
 		HasPaymentError bool
 	}
 
@@ -175,7 +175,7 @@ The checkoutController implements a default process for a checkout:
 
 // StartAction handles the checkout start action
 func (cc *CheckoutController) StartAction(ctx context.Context, r *web.Request) web.Result {
-	//Guard Clause if Cart cannot be fetched
+	// Guard Clause if Cart cannot be fetched
 	decoratedCart, e := cc.applicationCartReceiverService.ViewDecoratedCart(ctx, r.Session())
 	if e != nil {
 		cc.logger.WithContext(ctx).Error("cart.checkoutcontroller.viewaction: Error ", e)
@@ -187,7 +187,7 @@ func (cc *CheckoutController) StartAction(ctx context.Context, r *web.Request) w
 	}
 
 	viewData := cc.getBasicViewData(ctx, r, *decoratedCart)
-	//Guard Clause if Cart is empty
+	// Guard Clause if Cart is empty
 	if decoratedCart.Cart.ItemCount() == 0 {
 		if cc.showEmptyCartPageIfNoItems {
 			return cc.responder.Render("checkout/emptycart", nil)
@@ -208,7 +208,7 @@ func (cc *CheckoutController) StartAction(ctx context.Context, r *web.Request) w
 
 // SubmitCheckoutAction handles the main checkout
 func (cc *CheckoutController) SubmitCheckoutAction(ctx context.Context, r *web.Request) web.Result {
-	//Guard Clause if Cart can not be fetched
+	// Guard Clause if Cart can not be fetched
 	decoratedCart, e := cc.applicationCartReceiverService.ViewDecoratedCart(ctx, r.Session())
 	if e != nil {
 		cc.logger.WithContext(ctx).Error("cart.checkoutcontroller.submitaction: Error ", e)
@@ -344,11 +344,11 @@ func (cc *CheckoutController) getBasicViewData(ctx context.Context, request *web
 	}
 }
 
-//showCheckoutFormAndHandleSubmit - Action that shows the form
+// showCheckoutFormAndHandleSubmit - Action that shows the form
 func (cc *CheckoutController) showCheckoutFormAndHandleSubmit(ctx context.Context, r *web.Request, template string) web.Result {
 	session := r.Session()
 
-	//Guard Clause if Cart cannout be fetched
+	// Guard Clause if Cart cannout be fetched
 	decoratedCart, e := cc.applicationCartReceiverService.ViewDecoratedCart(ctx, session)
 	if e != nil {
 		cc.logger.WithContext(ctx).Error("cart.checkoutcontroller.submitaction: Error ", e)
@@ -360,7 +360,7 @@ func (cc *CheckoutController) showCheckoutFormAndHandleSubmit(ctx context.Contex
 		return cc.responder.Render("checkout/carterror", nil).SetNoCache()
 	}
 	viewData := cc.getBasicViewData(ctx, r, *decoratedCart)
-	//Guard Clause if Cart is empty
+	// Guard Clause if Cart is empty
 	if decoratedCart.Cart.ItemCount() == 0 {
 		if cc.showEmptyCartPageIfNoItems {
 			return cc.responder.Render("checkout/emptycart", nil).SetNoCache()
@@ -369,7 +369,7 @@ func (cc *CheckoutController) showCheckoutFormAndHandleSubmit(ctx context.Contex
 	}
 
 	if r.Request().Method != http.MethodPost {
-		//Form not Submitted:
+		// Form not Submitted:
 		form, err := cc.checkoutFormController.GetUnsubmittedForm(ctx, r)
 		if err != nil {
 			viewData.ErrorInfos = getViewErrorInfo(err)
@@ -379,7 +379,7 @@ func (cc *CheckoutController) showCheckoutFormAndHandleSubmit(ctx context.Contex
 		return cc.responder.Render(template, viewData).SetNoCache()
 	}
 
-	//Form submitted:
+	// Form submitted:
 	form, success, err := cc.checkoutFormController.HandleFormAction(ctx, r)
 	if err != nil {
 		viewData.ErrorInfos = getViewErrorInfo(err)
@@ -404,7 +404,7 @@ func (cc *CheckoutController) showCheckoutFormAndHandleSubmit(ctx context.Contex
 		return response
 	}
 
-	//Default: show form with its validation result
+	// Default: show form with its validation result
 	return cc.responder.Render(template, viewData).SetNoCache()
 }
 
@@ -525,7 +525,7 @@ func (cc *CheckoutController) ReviewAction(ctx context.Context, r *web.Request) 
 		return cc.responder.RouteRedirect("checkout.payment", nil)
 	}
 
-	//Guard Clause if cart can not be fetched
+	// Guard Clause if cart can not be fetched
 	decoratedCart, err := cc.applicationCartReceiverService.ViewDecoratedCartWithoutCache(ctx, r.Session())
 	if err != nil {
 		cc.logger.WithContext(ctx).Error("cart.checkoutcontroller.submitaction: Error ", err)
@@ -550,7 +550,7 @@ func (cc *CheckoutController) ReviewAction(ctx context.Context, r *web.Request) 
 		viewData.ErrorInfos = getViewErrorInfo(err)
 	}
 
-	//Everything valid then return
+	// Everything valid then return
 	if canProceed && err == nil {
 		if decoratedCart.Cart.IsPaymentSelected() {
 			return cc.processPayment(ctx, r)
